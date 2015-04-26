@@ -29,6 +29,7 @@ var (
 	G_errNotAllTaskCompleted  error                  = errors.New("有未完成的下载任务")
 	G_downloadingUpdateInfo   *UpdateInfo            = nil //当前运行的应用的版本信息
 	G_downloadTasks           DownloadTaskList       = DownloadTaskList{}
+	G_updateAppReady          bool                   = false
 )
 
 var ( //应用的相关信息
@@ -66,6 +67,12 @@ type MainController struct {
 
 func (this *MainController) TestAlive() {
 	this.Data["json"] = newCommand(0, beego.AppName)
+	this.ServeJson()
+}
+
+//呼叫升级助手可以进行升级了，应用根据返回值确定升级助手现在是否方便升级
+func (this *MainController) StartUpdate() {
+	this.Data["json"] = newCommand(0, "")
 	this.ServeJson()
 }
 

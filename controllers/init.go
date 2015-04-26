@@ -30,6 +30,27 @@ func init() {
 	time.Sleep(time.Second * 2)
 
 	startIntervalCheckUpdateInfoFromServer()
+	startIntervalNotifyAppUpdate()
+}
+func startIntervalNotifyAppUpdate() {
+	c := time.Tick(5 * time.Second)
+	// c := time.Tick(1 * time.Minute)
+	for range c {
+		if G_updateAppReady == true {
+			go func() {
+				DebugInfo("提示App可以升级了" + GetFileLocation())
+				resp, err := http.Get("http://localhost:" + G_UpdatedAppPort + "/Update")
+				if err != nil {
+					DebugSys(fmt.Sprintf("App无法接收升级提示: %s", err.Error()) + GetFileLocation())
+				}
+				if resp.StatusCode != 200 {
+					DebugSys(fmt.Sprintf("App无法接收升级提示: %s", resp.Status) + GetFileLocation())
+				}
+			}()
+		} else {
+			DebugInfo("没有升级信息可以通知App" + GetFileLocation())
+		}
+	}
 }
 func startIntervalCheckUpdateInfoFromServer() {
 	c := time.Tick(5 * time.Second)

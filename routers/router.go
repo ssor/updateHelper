@@ -6,5 +6,5 @@ import (
 )
 
 func init() {
-	beego.Router("/", &controllers.MainController{}, "get:TestAlive")
+	beego.Router("/StartUpdate", &controllers.MainController{}, "get:StartUpdate")
 }

@@ -55,7 +55,6 @@ func stopDownlingTasks() {
 
 //开始下载升级文件
 func createDownloadTasks(ui *UpdateInfo) DownloadTaskList {
-	G_downloadingUpdateInfo = ui //表示有升级任务下载
 	//查看是否有新目录需要创建
 	if err := PrepareUpdateFileDir(ui.FileList); err != nil {
 		DebugMust(err.Error() + GetFileLocation())
@@ -73,6 +72,9 @@ func createDownloadTasks(ui *UpdateInfo) DownloadTaskList {
 	downloadTasks := DownloadTaskList{}
 	for _, fc := range needDownFiles {
 		downloadTasks = append(downloadTasks, NewDownloadTask(G_UpdateResourcePath+fc.Path, G_baseUrl+fc.Path))
+	}
+	if len(downloadTasks) > 0 {
+		G_downloadingUpdateInfo = ui //表示有升级任务下载
 	}
 	return downloadTasks
 	// if err := StartDownloadTask(G_downloadTasks); err != nil {
@@ -129,6 +131,11 @@ func StartDownloadTask(tasks DownloadTaskList) error {
 		return err
 	}
 	closeCheckUpdateIntervalMode()
+	G_updateAppReady = true
+	return nil
+}
+func UpdateApp() {
+	G_updateAppReady = false
 	KillApp()
 	//将升级文件拷贝到系统目录中
 	if err := copyUpdateFileToApp(); err != nil {
@@ -141,7 +148,6 @@ func StartDownloadTask(tasks DownloadTaskList) error {
 	clearUpdateResourceDir()
 	StartApp()
 	openCheckUpdateIntervalMode()
-	return nil
 }
 
 //查看升级文件是否在新目录中，如果有先创建该目录
