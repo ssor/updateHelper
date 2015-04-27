@@ -11,7 +11,7 @@ type FileChecksum struct {
 }
 
 func (this *FileChecksum) Print() {
-	DebugTrace(fmt.Sprintf("Path: %s  check: %s", this.Path, this.Checksum) + GetFileLocation())
+	DebugInfo(fmt.Sprintf("Path: %s  check: %s", this.Path, this.Checksum))
 }
 func NewFileChecksum(path, checksum string) *FileChecksum {
 	return &FileChecksum{

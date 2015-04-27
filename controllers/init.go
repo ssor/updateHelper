@@ -13,7 +13,7 @@ import (
 	// "sync"
 	// "encoding/json"
 	// "errors"
-	// "net/http"
+	"net/http"
 	// "os/exec"
 	"time"
 	// "path"
@@ -29,8 +29,8 @@ func init() {
 	tryToStartApp()
 	time.Sleep(time.Second * 2)
 
-	startIntervalCheckUpdateInfoFromServer()
-	startIntervalNotifyAppUpdate()
+	go startIntervalCheckUpdateInfoFromServer()
+	go startIntervalNotifyAppUpdate()
 }
 func startIntervalNotifyAppUpdate() {
 	c := time.Tick(5 * time.Second)
@@ -53,7 +53,7 @@ func startIntervalNotifyAppUpdate() {
 	}
 }
 func startIntervalCheckUpdateInfoFromServer() {
-	c := time.Tick(5 * time.Second)
+	c := time.Tick(15 * time.Second)
 	// c := time.Tick(1 * time.Minute)
 	for range c {
 		if G_CheckUpdateIntervalMode == true {

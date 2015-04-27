@@ -46,8 +46,9 @@ func CheckUpdate() {
 	}
 }
 func clearUpdateResourceDir() {
-	os.Remove(G_UpdateResourcePath + G_versionInfoFile)
-	os.RemoveAll(G_UpdateResourcePath + "Bin/")
+	// os.Remove(G_UpdateResourcePath + G_versionInfoFile)
+	// os.RemoveAll(G_UpdateResourcePath + "Bin/")
+	os.RemoveAll(G_UpdateResourcePath)
 }
 func stopDownlingTasks() {
 	G_downloadTasks.Abort()
@@ -56,7 +57,7 @@ func stopDownlingTasks() {
 //开始下载升级文件
 func createDownloadTasks(ui *UpdateInfo) DownloadTaskList {
 	//查看是否有新目录需要创建
-	if err := PrepareUpdateFileDir(ui.FileList); err != nil {
+	if err := PrepareUpdateFileDir(ui.DirList); err != nil {
 		DebugMust(err.Error() + GetFileLocation())
 		return nil
 	}
@@ -71,7 +72,7 @@ func createDownloadTasks(ui *UpdateInfo) DownloadTaskList {
 
 	downloadTasks := DownloadTaskList{}
 	for _, fc := range needDownFiles {
-		downloadTasks = append(downloadTasks, NewDownloadTask(G_UpdateResourcePath+fc.Path, G_baseUrl+fc.Path))
+		downloadTasks = append(downloadTasks, NewDownloadTask(G_UpdateResourcePath+"Bin/"+fc.Path, G_baseUrl+"Bin/"+fc.Path))
 	}
 	if len(downloadTasks) > 0 {
 		G_downloadingUpdateInfo = ui //表示有升级任务下载
@@ -121,6 +122,7 @@ func StartDownloadTask(tasks DownloadTaskList) error {
 	completedTaskList := tasks.GetCompletdTaskList()
 	if len(completedTaskList) < len(tasks) {
 		DebugSys(fmt.Sprintf("下载升级文件出错，共有 %d 个下载任务，完成了 %d 个", len(tasks), len(completedTaskList)))
+		G_downloadingUpdateInfo = nil //将其设为空，等下一次下载的时候会重复下载
 		return G_errNotAllTaskCompleted
 	}
 	DebugSys("下载任务全部完成，升级文件准备完毕" + GetFileLocation())
@@ -139,8 +141,9 @@ func UpdateApp() {
 	KillApp()
 	//将升级文件拷贝到系统目录中
 	if err := copyUpdateFileToApp(); err != nil {
+		DebugMust("升级中出错：" + err.Error() + GetFileLocation())
 		openCheckUpdateIntervalMode()
-		return err
+		return
 	} else {
 		G_currentUpdateInfo = G_downloadingUpdateInfo
 		G_downloadingUpdateInfo = nil
@@ -148,31 +151,25 @@ func UpdateApp() {
 	clearUpdateResourceDir()
 	StartApp()
 	openCheckUpdateIntervalMode()
+	DebugMust("升级成功" + GetFileLocation())
 }
 
 //查看升级文件是否在新目录中，如果有先创建该目录
-func PrepareUpdateFileDir(filePathList FileChecksumList) error {
-	dirList := []string{}
-	for _, filePath := range filePathList {
-		dirList = append(dirList, getDirDepList(filePath.Path, []string{})...)
-	}
+func PrepareUpdateFileDir(dirList FileChecksumList) error {
+	// dirList := []string{}
+	// for _, filePath := range dirList {
+	// 	dirList = append(dirList, getDirDepList(filePath.Path, []string{})...)
+	// }
+	// dirList = removeDupDir(dirList, []string{})
+	// DebugSys("需要创建的目录：" + GetFileLocation())
 	// fmt.Println(dirList)
-	dirList = removeDupDir(dirList, []string{})
-	DebugSys("需要创建的目录：" + GetFileLocation())
-	fmt.Println(dirList)
 	for _, _dir := range dirList {
-		_dir = G_UpdateResourcePath + _dir
-		DebugTrace(fmt.Sprintf("创建目录：%s", _dir) + GetFileLocation())
-		if err := os.Mkdir(_dir, os.ModePerm); err != nil {
-			if os.IsExist(err) == true {
-				continue
-			} else {
-				DebugMust(err.Error() + GetFileLocation())
-				return err
-			}
+		dirpath := G_UpdateResourcePath + "Bin/" + _dir.Path
+		DebugTrace(fmt.Sprintf("创建目录：%s", dirpath) + GetFileLocation())
+		if err := os.MkdirAll(dirpath, os.ModePerm); err != nil {
+			return err
 		}
 	}
-	// return errors.New("")
 	return nil
 }
 func removeDupDir(dirList, noDupDirList []string) []string {
@@ -220,18 +217,21 @@ func copyUpdateFileToApp() error {
 				return err
 			} else {
 				DebugInfo(fmt.Sprintf("创建目录 %s 成功", dirPath) + GetFileLocation())
-
 			}
 		} else { //将文件拷贝到应用对应目录内
 			destFilePath := strings.Replace(fullPath, "UpdateResource", "App", 1)
 			DebugInfo(fmt.Sprintf("从 %s 向 %s 拷贝文件", fullPath, destFilePath) + GetFileLocation())
-			DebugInfo(fmt.Sprintf("需要复制文件：%s", destFilePath) + GetFileLocation())
+			if Exist(destFilePath) == true {
+				if err := os.Remove(destFilePath); err != nil {
+					return err
+				}
+			}
+			// DebugInfo(fmt.Sprintf("需要复制文件：%s", destFilePath) + GetFileLocation())
 			if err := CopyFile(destFilePath, fullPath); err != nil {
 				DebugMust(fmt.Sprintf("从 %s 向 %s 拷贝文件出错：%s", fullPath, destFilePath, err.Error()) + GetFileLocation())
 				return err
 			} else {
 				DebugInfo(fmt.Sprintf("从 %s 向 %s 拷贝文件成功", fullPath, destFilePath) + GetFileLocation())
-
 			}
 		}
 		return nil
@@ -240,6 +240,13 @@ func copyUpdateFileToApp() error {
 		return err
 	}
 	return nil
+}
+
+// 检查文件或目录是否存在
+// 如果由 filename 指定的文件或目录存在则返回 true，否则返回 false
+func Exist(filename string) bool {
+	_, err := os.Stat(filename)
+	return err == nil || os.IsExist(err)
 }
 func CopyFile(dstName, srcName string) error {
 	src, err := os.Open(srcName)

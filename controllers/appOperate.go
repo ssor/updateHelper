@@ -15,7 +15,7 @@ import (
 	"errors"
 	"net/http"
 	"os/exec"
-	"time"
+	// "time"
 	// "path"
 	// "path/filepath"
 )
@@ -53,12 +53,12 @@ func tryToStartApp() {
 			}
 		}
 		file.Close()
-		DebugMust("暂时屏蔽启动应用环节")
-		return
+		// DebugMust("暂时屏蔽启动应用环节")
+		// return
 		if StartApp() == true {
-			DebugInfo("启动应用成功" + GetFileLocation())
+			DebugSys("启动应用成功" + GetFileLocation())
 		} else {
-			DebugInfo("启动应用失败" + GetFileLocation())
+			DebugSys("启动应用失败" + GetFileLocation())
 		}
 	}
 }
@@ -73,6 +73,20 @@ func KillApp() error {
 	}
 }
 func StartApp() bool {
+	fi, err := os.Stat(G_appBinPath + G_UpdatedAppName)
+	if err != nil {
+		DebugMust(err.Error() + GetFileLocation())
+		return false
+	}
+	if fi.Mode() != os.ModePerm {
+		DebugSys("指定执行文件缺少权限，将尝试提升权限" + GetFileLocation())
+		err = os.Chmod(G_appBinPath+G_UpdatedAppName, os.ModePerm)
+		if err != nil {
+			DebugMust(err.Error() + GetFileLocation())
+			return false
+		}
+	}
+	chanListenCmd := make(chan bool)
 	go func(binPath string) {
 		cmd := exec.Command(binPath)
 		cmd.Stdout = os.Stdout
@@ -80,14 +94,31 @@ func StartApp() bool {
 		// log.Print(cmdline)
 		err := cmd.Start()
 		if err != nil {
-			DebugMust(fmt.Sprintf("启动应用失败: '%s'\n", err))
+			// DebugMust(fmt.Sprintf("启动应用失败: '%s'\n", err))
+			chanListenCmd <- false
+			return
 		}
 		G_UpdatedAppProc = cmd.Process
-	}(G_appBasePath + G_UpdatedAppName)
+		chanListenCmd <- true
+	}(G_appBinPath + G_UpdatedAppName)
+
 	DebugSys("正在启动，大约需要几秒钟。。。")
-	time.Sleep(time.Second * 3)
-	return TestAlive()
-	// return true
+	for {
+		select {
+		case result := <-chanListenCmd:
+			if result == false {
+				DebugMust(fmt.Sprintf("启动应用失败: '%s'\n", err))
+				return false
+			} else {
+				return true
+			}
+			break
+		}
+	}
+
+	// time.Sleep(time.Second * 3)
+	// return TestAlive()
+	return true
 }
 
 func TestAlive() bool {
@@ -99,26 +130,5 @@ func TestAlive() bool {
 	if resp.StatusCode != 200 {
 		return false
 	}
-	// bytes := []byte{}
-	// var buf = make([]byte, 1024)
-	// for {
-	// 	n, e := resp.Body.Read(buf)
-	// 	bytes = append(bytes, buf[:n]...)
-	// 	if e != nil {
-	// 		if e == io.EOF {
-	// 			// fmt.Println("数据读取完毕")
-	// 			// 数据已经下载完毕
-	// 			var cmd Command
-	// 			if err := json.Unmarshal(bytes, &cmd); err != nil {
-	// 				DebugInfo("获取应用的版本出错")
-	// 			} else {
-	// 				currentVersion = cmd.Message
-	// 				DebugInfo("获取应用的版本: " + currentVersion)
-	// 			}
-	// 			break
-	// 		}
-	// 		break
-	// 	}
-	// }
 	return true
 }
