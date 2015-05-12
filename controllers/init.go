@@ -22,18 +22,20 @@ import (
 
 func init() {
 	// copyUpdateFileToApp()
-	// return
 	initConfig()
 	go initCli()
 
 	tryToStartApp()
 	time.Sleep(time.Second * 2)
 
+	// CheckUpdate()
+	// return
+
 	go startIntervalCheckUpdateInfoFromServer()
 	go startIntervalNotifyAppUpdate()
 }
 func startIntervalNotifyAppUpdate() {
-	c := time.Tick(5 * time.Second)
+	c := time.Tick(15 * time.Second)
 	// c := time.Tick(1 * time.Minute)
 	for range c {
 		if G_updateAppReady == true {
@@ -83,6 +85,9 @@ func initConfig() {
 
 		G_UpdatedAppName = G_iniconf.String("updatedAppName")
 		DebugInfo("升级目标应用的名称：" + G_UpdatedAppName + GetFileLocation())
+
+		// G_appID = G_iniconf.String("appid")
+		// DebugInfo("升级目标应用的ID：" + G_appID + GetFileLocation())
 
 		// if err := iniconf.Set("locationCount", "23"); err != nil {
 		// 	beego.Warn(err.Error())

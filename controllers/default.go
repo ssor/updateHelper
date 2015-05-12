@@ -36,11 +36,12 @@ var (
 var ( //应用的相关信息
 	G_currentUpdateInfo  *UpdateInfo = nil                          //当前运行的应用的版本信息
 	G_UpdatedAppPort     string      = ""                           //http端口
-	G_UpdatedAppName     string      = ""                           //应用的名称
+	G_UpdatedAppName     string      = ""                           //应用的名称，实际的执行文件
 	G_appBasePath                    = "./App/"                     //应用所在的目录
 	G_appBinPath                     = "./App/Bin/"                 //应用所在的目录
 	G_appVersionFilePath             = "./App/" + G_versionInfoFile //应用的版本文件所在位置
 	G_UpdateResourcePath             = "./UpdateResource/"
+	// G_appID              string      = ""                           //与应用通信的标识，一般是应用的名称
 )
 
 type Command struct {
@@ -72,8 +73,13 @@ func (this *MainController) TestAlive() {
 
 //呼叫升级助手可以进行升级了，应用根据返回值确定升级助手现在是否方便升级
 func (this *MainController) StartUpdate() {
+	// appName := this.GetString("App")
+	// this.Data["json"] = newCommand(1, "应用名称不对应")
+	// DebugInfoF("应用名称不对应，传入的应用名称为：%s", appName)
+	// if appName == G_appID {
 	go UpdateApp()
 	this.Data["json"] = newCommand(0, "")
+	// }
 	this.ServeJson()
 }
 

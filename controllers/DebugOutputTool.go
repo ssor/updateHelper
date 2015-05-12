@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"github.com/astaxie/beego"
+	"github.com/fatih/color"
 	"runtime"
 	"strings"
 )
@@ -42,20 +43,45 @@ func init() {
 var DebugLevel int = 4
 
 var userBeego = false
+var useColor = true
 
 var G_printLog = true
+var G_DebugLine = "-------------------------------------------------------------------------------------------------"
 
-// var userBeego = true
-
+//能够造成系统不正常运行的问题
 func DebugMust(log string) {
 	DebugOutput(log, 1)
 }
+func DebugMustF(format string, args ...interface{}) {
+	log := fmt.Sprintf(format+"%s", append(args, GetFileLocation())...)
+	DebugMust(log)
+}
+func DebugSysF(format string, args ...interface{}) {
+	log := fmt.Sprintf(format+"%s", append(args, GetFileLocation())...)
+	DebugSys(log)
+}
+
+// 出现异常信息，系统能够正常运行，但是可能和使用者想象的不同
 func DebugSys(log string) {
 	DebugOutput(log, 2)
 }
+
+func DebugInfoF(format string, args ...interface{}) {
+	log := fmt.Sprintf(format+"%s", append(args, GetFileLocation())...)
+	DebugInfo(log)
+}
+
+// 关键步骤或者信息的提醒
 func DebugInfo(log string) {
 	DebugOutput(log, 3)
 }
+
+func DebugTraceF(format string, args ...interface{}) {
+	log := fmt.Sprintf(format+"%s", append(args, GetFileLocation())...)
+	DebugTrace(log)
+}
+
+// 运行数据的打印
 func DebugTrace(log string) {
 	DebugOutput(log, 4)
 }
@@ -67,8 +93,9 @@ func DebugOutput(log string, level int) {
 	if level <= DebugLevel {
 		if userBeego == true {
 			DebugOutputBeego(log, level)
+		} else if useColor == true {
+			DebugOutputColor(log, level)
 		} else {
-
 			prefix := ""
 			switch level {
 			case 1:
@@ -85,7 +112,18 @@ func DebugOutput(log string, level int) {
 		}
 	}
 }
-
+func DebugOutputColor(log string, level int) {
+	switch level {
+	case 1:
+		color.Red(log)
+	case 2:
+		color.Yellow(log)
+	case 3:
+		color.Green(log)
+	case 4:
+		color.Blue(log)
+	}
+}
 func DebugOutputBeego(log string, level int) {
 	switch level {
 	case 1:
@@ -99,7 +137,7 @@ func DebugOutputBeego(log string, level int) {
 	}
 }
 func GetFileLocation() string {
-	_, file, line, ok := runtime.Caller(1)
+	_, file, line, ok := runtime.Caller(2)
 	if ok {
 		array := strings.Split(file, "/")
 		return fmt.Sprintf(" (%s %d)", array[len(array)-1], line)

@@ -6,7 +6,7 @@ import (
 	// "github.com/astaxie/beego"
 	// "github.com/codegangsta/cli"
 	// "io"
-	// "fmt"
+	"fmt"
 	// "os"
 	// "strings"
 	// "sync"
@@ -22,6 +22,10 @@ type DownloadTask struct {
 	Downloader *downloader.FileDl
 }
 
+func (this *DownloadTask) Print() {
+	// DebugInfo(fmt.Sprintf("Path: %s  Url: %s", this.Path, this.Url) + GetFileLocation())
+	DebugInfo(fmt.Sprintf("Path: %s  ", this.Path) + GetFileLocation())
+}
 func (this *DownloadTask) Abort() {
 	if this.Downloader != nil {
 		this.Downloader.Abort()
@@ -36,6 +40,18 @@ func NewDownloadTask(path, url string) *DownloadTask {
 }
 
 type DownloadTaskList []*DownloadTask
+
+func (this DownloadTaskList) Print() {
+	if len(this) > 0 {
+		DebugSys(fmt.Sprintf("下载任务列表中有 %d 个任务", len(this)) + GetFileLocation())
+
+		for _, task := range this {
+			task.Print()
+		}
+	} else {
+		DebugSys("下载任务列表中没有任务" + GetFileLocation())
+	}
+}
 
 func (this DownloadTaskList) SetStatus(url string, status bool) {
 	for _, task := range this {

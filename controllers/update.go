@@ -25,19 +25,19 @@ func CheckUpdate() {
 		DebugSys(err.Error() + GetFileLocation())
 		return
 	} else {
+		DebugInfo(fmt.Sprintf("新版本号：%s  当前版本号：%s", ui.Version, G_currentUpdateInfo.Version) + GetFileLocation())
 		if ui.Version > G_currentUpdateInfo.Version { //版本有提升才有意义
 			if G_downloadingUpdateInfo == nil {
 				//没有正在下载的升级任务
 				DebugInfo("系统有更新，准备升级" + GetFileLocation())
-				clearUpdateResourceDir()
-				StartDownloadTask(createDownloadTasks(ui))
+				startUpdate(ui)
 			} else {
+				DebugInfo(fmt.Sprintf("新版本号：%s  正在下载的版本号：%s", ui.Version, G_downloadingUpdateInfo.Version) + GetFileLocation())
 				if ui.Version > G_downloadingUpdateInfo.Version {
 					//如果正在下载升级文件，并且版本号有提升
 					//停止正在进行的下载，清空目录
 					stopDownlingTasks()
-					clearUpdateResourceDir()
-					StartDownloadTask(createDownloadTasks(ui))
+					startUpdate(ui)
 				}
 			}
 		} else {
@@ -45,10 +45,15 @@ func CheckUpdate() {
 		}
 	}
 }
+func startUpdate(ui *UpdateInfo) {
+	clearUpdateResourceDir()
+	list := createDownloadTasks(ui)
+	list.Print()
+	StartDownloadTask(list)
+}
 func clearUpdateResourceDir() {
-	// os.Remove(G_UpdateResourcePath + G_versionInfoFile)
-	// os.RemoveAll(G_UpdateResourcePath + "Bin/")
 	os.RemoveAll(G_UpdateResourcePath)
+
 }
 func stopDownlingTasks() {
 	G_downloadTasks.Abort()

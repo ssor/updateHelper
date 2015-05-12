@@ -53,7 +53,7 @@ func tryToStartApp() {
 			}
 		}
 		file.Close()
-		// DebugMust("暂时屏蔽启动应用环节")
+		// DebugMust("暂时屏蔽启动应用环节" + GetFileLocation())
 		// return
 		if StartApp() == true {
 			DebugSys("启动应用成功" + GetFileLocation())
