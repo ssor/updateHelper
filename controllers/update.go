@@ -21,18 +21,18 @@ import (
 )
 
 func CheckUpdate() {
-	if ui, err := GetVersionInfo(G_versionUrl); err != nil {
-		DebugSys(err.Error() + GetFileLocation())
+	if ui, err := GetVersionInfo(G_conf.UpdateServerBaseURL + G_versionInfoFile); err != nil {
+		DebugSysF(err.Error())
 		return
 	} else {
-		DebugInfo(fmt.Sprintf("新版本号：%s  当前版本号：%s", ui.Version, G_currentUpdateInfo.Version) + GetFileLocation())
+		DebugInfoF("新版本号：%s  当前版本号：%s", ui.Version, G_currentUpdateInfo.Version)
 		if ui.Version > G_currentUpdateInfo.Version { //版本有提升才有意义
 			if G_downloadingUpdateInfo == nil {
 				//没有正在下载的升级任务
-				DebugInfo("系统有更新，准备升级" + GetFileLocation())
+				DebugInfoF("系统有更新，准备升级")
 				startUpdate(ui)
 			} else {
-				DebugInfo(fmt.Sprintf("新版本号：%s  正在下载的版本号：%s", ui.Version, G_downloadingUpdateInfo.Version) + GetFileLocation())
+				DebugInfoF("新版本号：%s  正在下载的版本号：%s", ui.Version, G_downloadingUpdateInfo.Version)
 				if ui.Version > G_downloadingUpdateInfo.Version {
 					//如果正在下载升级文件，并且版本号有提升
 					//停止正在进行的下载，清空目录
@@ -41,7 +41,7 @@ func CheckUpdate() {
 				}
 			}
 		} else {
-			DebugInfo("系统无需升级" + GetFileLocation())
+			DebugInfoF("系统无需升级")
 		}
 	}
 }
@@ -63,7 +63,7 @@ func stopDownlingTasks() {
 func createDownloadTasks(ui *UpdateInfo) DownloadTaskList {
 	//查看是否有新目录需要创建
 	if err := PrepareUpdateFileDir(ui.DirList); err != nil {
-		DebugMust(err.Error() + GetFileLocation())
+		DebugMustF(err.Error())
 		return nil
 	}
 
@@ -77,7 +77,7 @@ func createDownloadTasks(ui *UpdateInfo) DownloadTaskList {
 
 	downloadTasks := DownloadTaskList{}
 	for _, fc := range needDownFiles {
-		downloadTasks = append(downloadTasks, NewDownloadTask(G_UpdateResourcePath+"Bin/"+fc.Path, G_baseUrl+"Bin/"+fc.Path))
+		downloadTasks = append(downloadTasks, NewDownloadTask(G_UpdateResourcePath+"Bin/"+fc.Path, G_conf.UpdateServerBaseURL+"Bin/"+fc.Path))
 	}
 	if len(downloadTasks) > 0 {
 		G_downloadingUpdateInfo = ui //表示有升级任务下载
@@ -97,7 +97,7 @@ func StartDownloadTask(tasks DownloadTaskList) error {
 	}
 	taskCount := len(tasks)
 	if taskCount <= 0 {
-		DebugInfo("没有文件下载任务" + GetFileLocation())
+		DebugInfoF("没有文件下载任务")
 		return nil
 	}
 	G_downloadTasks = tasks
@@ -105,7 +105,7 @@ func StartDownloadTask(tasks DownloadTaskList) error {
 	for _, task := range tasks {
 		go func(path, url string) {
 			if fl, err := DownloadFromUrl(path, url, chanTask); err != nil {
-				DebugMust(err.Error() + GetFileLocation())
+				DebugMustF(err.Error())
 			} else {
 				task.Downloader = fl
 			}
@@ -114,14 +114,14 @@ func StartDownloadTask(tasks DownloadTaskList) error {
 	for i := 0; i < taskCount; i++ {
 		downloadResult := <-chanTask
 		tasks.SetStatus(downloadResult.Url, downloadResult.Status)
-		DebugTrace(fmt.Sprintf("接收到下载反馈信息 %s url: %s", downloadResult.Status, downloadResult.Url) + GetFileLocation())
+		DebugTraceF("接收到下载反馈信息 %s url: %s", downloadResult.Status, downloadResult.Url)
 	}
 
 	for _, task := range tasks {
 		if task.Status == true {
-			DebugInfo(fmt.Sprintf("%s 下载完毕", task.Url) + GetFileLocation())
+			DebugInfoF("%s 下载完毕", task.Url)
 		} else {
-			DebugSys(fmt.Sprintf("%s 下载失败", task.Url) + GetFileLocation())
+			DebugSysF("%s 下载失败", task.Url)
 		}
 	}
 	completedTaskList := tasks.GetCompletdTaskList()
@@ -130,7 +130,7 @@ func StartDownloadTask(tasks DownloadTaskList) error {
 		G_downloadingUpdateInfo = nil //将其设为空，等下一次下载的时候会重复下载
 		return G_errNotAllTaskCompleted
 	}
-	DebugSys("下载任务全部完成，升级文件准备完毕" + GetFileLocation())
+	DebugSysF("下载任务全部完成，升级文件准备完毕")
 
 	//将版本信息写入到文件中，表明这个版本升级文件准备完毕
 	fileName := G_UpdateResourcePath + G_versionInfoFile
@@ -146,7 +146,7 @@ func UpdateApp() {
 	KillApp()
 	//将升级文件拷贝到系统目录中
 	if err := copyUpdateFileToApp(); err != nil {
-		DebugMust("升级中出错：" + err.Error() + GetFileLocation())
+		DebugMustF("升级中出错：" + err.Error())
 		openCheckUpdateIntervalMode()
 		return
 	} else {
@@ -154,9 +154,11 @@ func UpdateApp() {
 		G_downloadingUpdateInfo = nil
 	}
 	clearUpdateResourceDir()
-	StartApp()
+	// StartApp()
+	go TickForStartApp(3)
+
 	openCheckUpdateIntervalMode()
-	DebugMust("升级成功" + GetFileLocation())
+	DebugMustF("升级成功")
 }
 
 //查看升级文件是否在新目录中，如果有先创建该目录
@@ -170,7 +172,7 @@ func PrepareUpdateFileDir(dirList FileChecksumList) error {
 	// fmt.Println(dirList)
 	for _, _dir := range dirList {
 		dirpath := G_UpdateResourcePath + "Bin/" + _dir.Path
-		DebugTrace(fmt.Sprintf("创建目录：%s", dirpath) + GetFileLocation())
+		DebugTraceF("创建目录：%s", dirpath)
 		if err := os.MkdirAll(dirpath, os.ModePerm); err != nil {
 			return err
 		}
@@ -216,16 +218,16 @@ func copyUpdateFileToApp() error {
 		}
 		if info.IsDir() == true { //在应用目录内查看是否已创建该目录
 			dirPath := strings.Replace(fullPath, "UpdateResource", "App", 1)
-			DebugInfo(fmt.Sprintf("需要创建目录：%s", dirPath) + GetFileLocation())
+			DebugInfoF("需要创建目录：%s", dirPath)
 			if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
-				DebugMust(fmt.Sprintf("创建目录 %s 失败：%s", dirPath, err.Error()) + GetFileLocation())
+				DebugMustF("创建目录 %s 失败：%s", dirPath, err.Error())
 				return err
 			} else {
-				DebugInfo(fmt.Sprintf("创建目录 %s 成功", dirPath) + GetFileLocation())
+				DebugInfoF("创建目录 %s 成功", dirPath)
 			}
 		} else { //将文件拷贝到应用对应目录内
 			destFilePath := strings.Replace(fullPath, "UpdateResource", "App", 1)
-			DebugInfo(fmt.Sprintf("从 %s 向 %s 拷贝文件", fullPath, destFilePath) + GetFileLocation())
+			DebugInfoF("从 %s 向 %s 拷贝文件", fullPath, destFilePath)
 			if Exist(destFilePath) == true {
 				if err := os.Remove(destFilePath); err != nil {
 					return err
@@ -233,10 +235,10 @@ func copyUpdateFileToApp() error {
 			}
 			// DebugInfo(fmt.Sprintf("需要复制文件：%s", destFilePath) + GetFileLocation())
 			if err := CopyFile(destFilePath, fullPath); err != nil {
-				DebugMust(fmt.Sprintf("从 %s 向 %s 拷贝文件出错：%s", fullPath, destFilePath, err.Error()) + GetFileLocation())
+				DebugMustF("从 %s 向 %s 拷贝文件出错：%s", fullPath, destFilePath, err.Error())
 				return err
 			} else {
-				DebugInfo(fmt.Sprintf("从 %s 向 %s 拷贝文件成功", fullPath, destFilePath) + GetFileLocation())
+				DebugInfoF("从 %s 向 %s 拷贝文件成功", fullPath, destFilePath)
 			}
 		}
 		return nil
@@ -286,7 +288,7 @@ func createVersionInfoFile(fileName string, versionInfo *UpdateInfo) error {
 		return err
 	} else {
 		if err := writeFile(bytes); err != nil {
-			DebugMust("创建版本信息文件失败：" + err.Error() + GetFileLocation())
+			DebugMustF("创建版本信息文件失败：" + err.Error())
 			return err
 		}
 	}
@@ -306,12 +308,12 @@ func DownloadFromUrl(filePath, url string, chanDownloadCount chan DownloadTask) 
 	// file, err := os.OpenFile(fileTempPath+fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
 	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
 	if err != nil {
-		DebugSys(err.Error() + GetFileLocation())
+		DebugSysF(err.Error())
 		return nil, err
 	}
 	fileDl, err := downloader.NewFileDl(url, file, -1)
 	if err != nil {
-		DebugSys(fmt.Sprintf("下载 [%s] 出错：%s  url: %s", filePath, err.Error(), url) + GetFileLocation())
+		DebugSysF("下载 [%s] 出错：%s  url: %s", filePath, err.Error(), url)
 		chanDownloadCount <- DownloadTask{
 			Url:    url,
 			Status: false,
@@ -330,7 +332,7 @@ func DownloadFromUrl(filePath, url string, chanDownloadCount chan DownloadTask) 
 			case <-chanExit:
 				status := fileDl.GetStatus()
 				// fmt.Println(fmt.Sprintf(format, status.Downloaded, fileDl.Size, h, 0, "[FINISH]"))
-				DebugInfo(fmt.Sprintf("[%s] 下载完成，共 %d 字节", filePath, status.Downloaded) + GetFileLocation())
+				DebugInfoF("[%s] 下载完成，共 %d 字节", filePath, status.Downloaded)
 				// DebugTrace("关闭文件"+GetFileLocation())
 				file.Close()
 				chanDownloadCount <- DownloadTask{
@@ -342,13 +344,13 @@ func DownloadFromUrl(filePath, url string, chanDownloadCount chan DownloadTask) 
 				i := 0
 				for {
 					if err := file.Close(); err == nil {
-						DebugInfo("下载取消成功，关闭了文件 [" + filePath + "]" + GetFileLocation())
+						DebugInfoF("下载取消成功，关闭了文件 [%s]", filePath)
 						break
 					}
 					time.Sleep(time.Second * 1)
 					i++
 					if i > 3 {
-						DebugMust("下载取消失败，无法关闭文件 [" + filePath + "]" + GetFileLocation())
+						DebugMustF("下载取消失败，无法关闭文件 [%s", filePath)
 						break
 					}
 				}
@@ -385,7 +387,7 @@ func DownloadFromUrl(filePath, url string, chanDownloadCount chan DownloadTask) 
 	})
 
 	// fmt.Printf("%+v\n", fileDl)
-	DebugInfo(fmt.Sprintf("开始下载 url: %s", url) + GetFileLocation())
+	DebugInfoF("开始下载 url: %s", url)
 	fileDl.Start()
 	return fileDl, nil
 }

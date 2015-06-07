@@ -1,0 +1,5 @@
+
+UpdatedAppPort = "8080"
+UpdatedAppName = "main.exe"
+UpdateServerBaseURL = "https://raw.githubusercontent.com/ssor/binpickupwin386/master/"
+UpdateCheckInterval = 30 #second

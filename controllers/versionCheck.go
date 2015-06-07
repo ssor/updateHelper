@@ -2,7 +2,7 @@ package controllers
 
 import (
 	// "bufio"
-	"fmt"
+	// "fmt"
 	// "github.com/Bluek404/downloader"
 	// "github.com/astaxie/beego"
 	// "github.com/astaxie/beego/config"
@@ -34,7 +34,7 @@ func GetVersionInfo(url string) (*UpdateInfo, error) {
 	return &ui, nil
 }
 func RequestVersionInfo(url string) ([]byte, error) {
-	DebugInfo(fmt.Sprintf("尝试访问链接： %s", url) + GetFileLocation())
+	DebugInfoF("尝试访问链接： %s", url)
 	bytes := []byte{}
 	resp, err := http.Get(url)
 	// fmt.Println(resp.Status + "  " + url)
@@ -52,7 +52,7 @@ func RequestVersionInfo(url string) ([]byte, error) {
 		bytes = append(bytes, buf[:n]...)
 		if e != nil {
 			if e == io.EOF {
-				DebugInfo("数据读取完毕" + GetFileLocation())
+				DebugInfoF("数据读取完毕")
 				// 数据已经下载完毕
 				return bytes, nil
 			}

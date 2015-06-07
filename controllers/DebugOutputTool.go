@@ -3,7 +3,7 @@ package controllers
 import (
 	"fmt"
 	"github.com/astaxie/beego"
-	"github.com/fatih/color"
+	// "github.com/fatih/color"
 	"runtime"
 	"strings"
 )
@@ -40,24 +40,47 @@ func init() {
 
 }
 
+type IPrintList interface {
+	ListName() string
+	InfoList() []string
+}
+
 var DebugLevel int = 4
 
-var userBeego = false
-var useColor = true
+var userBeego = true
+
+// var useColor = false
 
 var G_printLog = true
 var G_DebugLine = "-------------------------------------------------------------------------------------------------"
+
+func DebugPrintList_Info(list IPrintList) {
+	PrintList(list, DebugInfo)
+}
+func DebugPrintList_Trace(list IPrintList) {
+	PrintList(list, DebugTrace)
+}
+func PrintList(list IPrintList, printFunc func(log string)) {
+	log := fmt.Sprintf(G_DebugLine+"%s", getFileLocation())
+	printFunc(log)
+	printFunc(list.ListName() + " 列表：")
+	strs := list.InfoList()
+	for _, str := range strs {
+		printFunc(str)
+	}
+	printFunc(log)
+}
 
 //能够造成系统不正常运行的问题
 func DebugMust(log string) {
 	DebugOutput(log, 1)
 }
 func DebugMustF(format string, args ...interface{}) {
-	log := fmt.Sprintf(format+"%s", append(args, GetFileLocation())...)
+	log := fmt.Sprintf(format+"%s", append(args, getFileLocation())...)
 	DebugMust(log)
 }
 func DebugSysF(format string, args ...interface{}) {
-	log := fmt.Sprintf(format+"%s", append(args, GetFileLocation())...)
+	log := fmt.Sprintf(format+"%s", append(args, getFileLocation())...)
 	DebugSys(log)
 }
 
@@ -67,7 +90,7 @@ func DebugSys(log string) {
 }
 
 func DebugInfoF(format string, args ...interface{}) {
-	log := fmt.Sprintf(format+"%s", append(args, GetFileLocation())...)
+	log := fmt.Sprintf(format+"%s", append(args, getFileLocation())...)
 	DebugInfo(log)
 }
 
@@ -77,7 +100,7 @@ func DebugInfo(log string) {
 }
 
 func DebugTraceF(format string, args ...interface{}) {
-	log := fmt.Sprintf(format+"%s", append(args, GetFileLocation())...)
+	log := fmt.Sprintf(format+"%s", append(args, getFileLocation())...)
 	DebugTrace(log)
 }
 
@@ -93,8 +116,6 @@ func DebugOutput(log string, level int) {
 	if level <= DebugLevel {
 		if userBeego == true {
 			DebugOutputBeego(log, level)
-		} else if useColor == true {
-			DebugOutputColor(log, level)
 		} else {
 			prefix := ""
 			switch level {
@@ -112,18 +133,19 @@ func DebugOutput(log string, level int) {
 		}
 	}
 }
-func DebugOutputColor(log string, level int) {
-	switch level {
-	case 1:
-		color.Red(log)
-	case 2:
-		color.Yellow(log)
-	case 3:
-		color.Green(log)
-	case 4:
-		color.Blue(log)
-	}
-}
+
+// func DebugOutputColor(log string, level int) {
+// 	switch level {
+// 	case 1:
+// 		color.Red(log)
+// 	case 2:
+// 		color.Yellow(log)
+// 	case 3:
+// 		color.Green(log)
+// 	case 4:
+// 		color.Blue(log)
+// 	}
+// }
 func DebugOutputBeego(log string, level int) {
 	switch level {
 	case 1:
@@ -136,7 +158,7 @@ func DebugOutputBeego(log string, level int) {
 		beego.Debug(log)
 	}
 }
-func GetFileLocation() string {
+func getFileLocation() string {
 	_, file, line, ok := runtime.Caller(2)
 	if ok {
 		array := strings.Split(file, "/")

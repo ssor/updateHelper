@@ -3,9 +3,10 @@ package controllers
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	// "github.com/Bluek404/downloader"
 	"github.com/astaxie/beego"
-	"github.com/astaxie/beego/config"
+	// "github.com/astaxie/beego/config"
 	"github.com/codegangsta/cli"
 	// "io"
 	"os"
@@ -18,11 +19,40 @@ import (
 	"time"
 	// "path"
 	// "path/filepath"
+	"github.com/BurntSushi/toml"
+	"runtime"
+)
+
+//系统配置项
+type Config struct {
+	UpdatedAppPort      string
+	UpdatedAppName      string
+	UpdateServerBaseURL string
+	UpdateCheckInterval int
+}
+
+func (this *Config) ListName() string {
+	return "系统配置列表："
+}
+func (this *Config) InfoList() []string {
+	list := []string{
+		fmt.Sprintf("应用名称：%s", this.UpdatedAppName),
+		fmt.Sprintf("应用升级端口：%s", this.UpdatedAppPort),
+		fmt.Sprintf("应用升级资源URL：%s", this.UpdateServerBaseURL),
+		fmt.Sprintf("应用升级检查时间间隔：%d 秒", this.UpdateCheckInterval),
+	}
+	return list
+}
+
+var (
+	G_conf Config
 )
 
 func init() {
 	// copyUpdateFileToApp()
-	initConfig()
+	if err := initConfig(); err != nil {
+		return
+	}
 	go initCli()
 
 	tryToStartApp()
@@ -40,62 +70,52 @@ func startIntervalNotifyAppUpdate() {
 	for range c {
 		if G_updateAppReady == true {
 			go func() {
-				DebugInfo("提示App可以升级了" + GetFileLocation())
-				resp, err := http.Get("http://localhost:" + G_UpdatedAppPort + "/Update")
+				DebugInfoF("提示App可以升级了")
+				resp, err := http.Get("http://localhost:" + G_conf.UpdatedAppPort + "/Update")
 				if err != nil {
-					DebugSys(fmt.Sprintf("App无法接收升级提示: %s", err.Error()) + GetFileLocation())
+					DebugSysF("App无法接收升级提示: %s", err.Error())
 				}
 				if resp.StatusCode != 200 {
-					DebugSys(fmt.Sprintf("App无法接收升级提示: %s", resp.Status) + GetFileLocation())
+					DebugSysF("App无法接收升级提示: %s", resp.Status)
 				}
 			}()
 		} else {
-			DebugInfo("没有升级信息可以通知App" + GetFileLocation())
+			DebugInfoF("没有升级信息可以通知App")
 		}
 	}
 }
 func startIntervalCheckUpdateInfoFromServer() {
-	c := time.Tick(15 * time.Second)
+	c := time.Tick(time.Duration(G_conf.UpdateCheckInterval) * time.Second)
 	// c := time.Tick(1 * time.Minute)
 	for range c {
 		if G_CheckUpdateIntervalMode == true {
 			go func() {
-				DebugInfo("定时检查升级模式启用" + GetFileLocation())
+				DebugInfoF("定时检查升级模式启用")
 				CheckUpdate()
 			}()
 		} else {
-			DebugInfo("定时检查升级模式关闭" + GetFileLocation())
+			DebugInfoF("定时检查升级模式关闭")
 		}
 	}
 }
 
-func initConfig() {
-	var err error
-	G_iniconf, err = config.NewConfig("ini", "conf/app.conf")
-	if err != nil {
-		beego.Error(err.Error())
-	} else {
-		updatedAppPort := G_iniconf.String("updatedAppPort")
-		if len(updatedAppPort) <= 0 {
-			G_UpdatedAppPort = "9001"
-		} else {
-			G_UpdatedAppPort = updatedAppPort
-		}
-		DebugInfo("升级目标应用的端口：" + G_UpdatedAppPort + GetFileLocation())
-
-		G_UpdatedAppName = G_iniconf.String("updatedAppName")
-		DebugInfo("升级目标应用的名称：" + G_UpdatedAppName + GetFileLocation())
-
-		// G_appID = G_iniconf.String("appid")
-		// DebugInfo("升级目标应用的ID：" + G_appID + GetFileLocation())
-
-		// if err := iniconf.Set("locationCount", "23"); err != nil {
-		// 	beego.Warn(err.Error())
-		// }
-		// if err := iniconf.SaveConfigFile("conf/app.conf"); err != nil {
-		// 	beego.Warn(err.Error())
-		// }
+func initConfig() error {
+	confFile := "conf/sys_darwin.toml"
+	if strings.Contains(runtime.GOOS, "windows") == true {
+		confFile = "conf/sys_windows.toml"
 	}
+	if confData, err := ioutil.ReadFile(confFile); err != nil {
+		DebugMustF("系统配置出错：%s", err.Error())
+		return err
+	} else {
+		if _, err := toml.Decode(string(confData), &G_conf); err != nil {
+			DebugMustF("系统配置出错：%s", err.Error())
+			return err
+		}
+		DebugPrintList_Info(&G_conf)
+	}
+
+	return nil
 }
 
 func initCli() {
@@ -134,7 +154,7 @@ func initCli() {
 				// 	root = "Bin"
 				// }
 				beego.Info(fmt.Sprintf("获取要升级的版本信息"))
-				GetVersionInfo(G_versionUrl)
+				GetVersionInfo(G_conf.UpdateServerBaseURL + G_versionInfoFile)
 			},
 		}, {
 			Name:        "StartApp",
@@ -142,11 +162,8 @@ func initCli() {
 			Usage:       "启动要升级的应用",
 			Description: "要启动的应用位于 " + G_appBasePath + " 目录下",
 			Action: func(c *cli.Context) {
-				if StartApp() == true {
-					DebugInfo("启动应用成功")
-				} else {
-					DebugInfo("启动应用失败")
-				}
+				go TickForStartApp(3)
+
 			},
 		}, {
 			Name:        "TestAlive",
@@ -156,11 +173,11 @@ func initCli() {
 			Action: func(c *cli.Context) {
 				if alive := TestAlive(); alive == true {
 					beego.Info("应用运行中")
-					if len(G_UpdatedAppName) > 0 {
-						DebugInfo(fmt.Sprintf("要升级的应用名称: %s(%s)", G_UpdatedAppName, G_currentUpdateInfo.Version) + GetFileLocation())
+					if len(G_conf.UpdatedAppName) > 0 {
+						DebugInfoF("要升级的应用名称: %s(%s)", G_conf.UpdatedAppName, G_currentUpdateInfo.Version)
 					}
 				} else {
-					beego.Info("应用没有运行")
+					DebugInfoF("应用没有运行")
 				}
 			},
 		}, {
@@ -170,9 +187,9 @@ func initCli() {
 			Description: "停止应用后，才能替换升级文件",
 			Action: func(c *cli.Context) {
 				if err := KillApp(); err != nil {
-					DebugMust("关闭应用出错：" + err.Error() + GetFileLocation())
+					DebugMustF("关闭应用出错：%s", err.Error())
 				} else {
-					DebugMust("应用已成功关闭")
+					DebugMustF("应用已成功关闭")
 				}
 			},
 		},
