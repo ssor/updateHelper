@@ -46,9 +46,12 @@ func CheckUpdate() {
 	}
 }
 func startUpdate(ui *UpdateInfo) {
+	// UpdateApp()
+	// return //测试绕过下载直接更新
 	clearUpdateResourceDir()
 	list := createDownloadTasks(ui)
-	list.Print()
+	// list.Print()
+	DebugPrintList_Trace(list)
 	StartDownloadTask(list)
 }
 func clearUpdateResourceDir() {
@@ -143,7 +146,10 @@ func StartDownloadTask(tasks DownloadTaskList) error {
 }
 func UpdateApp() {
 	G_updateAppReady = false
-	KillApp()
+	if err := KillApp(); err != nil {
+		DebugSysF("停止App运行出错：%s", err.Error())
+		return
+	}
 	//将升级文件拷贝到系统目录中
 	if err := copyUpdateFileToApp(); err != nil {
 		DebugMustF("升级中出错：" + err.Error())
@@ -229,6 +235,9 @@ func copyUpdateFileToApp() error {
 			destFilePath := strings.Replace(fullPath, "UpdateResource", "App", 1)
 			DebugInfoF("从 %s 向 %s 拷贝文件", fullPath, destFilePath)
 			if Exist(destFilePath) == true {
+				if err := os.Chmod(destFilePath, os.ModePerm); err != nil {
+					return err
+				}
 				if err := os.Remove(destFilePath); err != nil {
 					return err
 				}

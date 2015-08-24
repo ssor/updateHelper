@@ -1,5 +1,0 @@
-
-UpdatedAppPort = "8080"
-UpdatedAppName = "main"
-UpdateServerBaseURL = "https://raw.githubusercontent.com/ssor/binpickup/master/"
-UpdateCheckInterval = 30 #second

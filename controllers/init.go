@@ -20,11 +20,14 @@ import (
 	// "path"
 	// "path/filepath"
 	"github.com/BurntSushi/toml"
-	"runtime"
+	"github.com/c4milo/unzipit"
+	"github.com/ungerik/go-dry"
+	// "runtime"
 )
 
 //系统配置项
 type Config struct {
+	AppID               string
 	UpdatedAppPort      string
 	UpdatedAppName      string
 	UpdateServerBaseURL string
@@ -36,6 +39,7 @@ func (this *Config) ListName() string {
 }
 func (this *Config) InfoList() []string {
 	list := []string{
+		fmt.Sprintf("应用标识：%s", this.AppID),
 		fmt.Sprintf("应用名称：%s", this.UpdatedAppName),
 		fmt.Sprintf("应用升级端口：%s", this.UpdatedAppPort),
 		fmt.Sprintf("应用升级资源URL：%s", this.UpdateServerBaseURL),
@@ -50,6 +54,7 @@ var (
 
 func init() {
 	// copyUpdateFileToApp()
+	unzipApp("App.zip")
 	if err := initConfig(); err != nil {
 		return
 	}
@@ -98,12 +103,40 @@ func startIntervalCheckUpdateInfoFromServer() {
 		}
 	}
 }
-
-func initConfig() error {
-	confFile := "conf/sys_darwin.toml"
-	if strings.Contains(runtime.GOOS, "windows") == true {
-		confFile = "conf/sys_windows.toml"
+func unzipApp(zipfileName string) {
+	// dir := strings.Trim(zipfileName, path.Ext(zipfileName))
+	// dir := "." + string(os.PathSeparator)
+	dir := "./App"
+	//处理压缩的数据，解压到当前同名的目录下
+	if dry.FileExists(zipfileName) == true {
+		if file, err := os.Open(zipfileName); err != nil {
+			DebugMustF("打开数据库压缩文件出错：%s", err.Error())
+			return
+		} else {
+			defer func() {
+				if file != nil {
+					file.Close()
+				}
+			}()
+			DebugTraceF("解压缩App文件...")
+			if _, errUnzip := unzipit.Unpack(file, dir); errUnzip != nil {
+				DebugMustF("解压缩zip文件出错：%s", errUnzip.Error())
+				return
+			} else {
+				file.Close()
+				file = nil
+				DebugTraceF("正在清理压缩文件 %s...", zipfileName)
+				if err := os.Remove(zipfileName); err != nil {
+					DebugMustF("清理压缩文件时出错：%s", err.Error())
+					return
+				}
+				DebugTraceF("压缩文件 %s 清理完毕", zipfileName)
+			}
+		}
 	}
+}
+func initConfig() error {
+	confFile := "conf/sys.toml"
 	if confData, err := ioutil.ReadFile(confFile); err != nil {
 		DebugMustF("系统配置出错：%s", err.Error())
 		return err

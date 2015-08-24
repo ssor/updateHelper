@@ -30,14 +30,9 @@ func init() {
 	beego.BeeLogger.EnableFuncCallDepth(false)
 	beego.BeeLogger.SetLogFuncCallDepth(7)
 
-	// beego.Trace("traceeeeeee")
-	// beego.Debug("debuggggggg")
-	// beego.Info("infooooooooo")
-	// beego.Warn("warnnnnnnnnn")
-	// beego.Error("errorrrrrr")
-	// beego.Critical("criticalllllll")
-	//"test"
-
+	if strings.Contains(strings.ToLower(runtime.GOOS), "windows") == true { //windows平台下不使用beego打印log的方案
+		useBeego = false
+	}
 }
 
 type IPrintList interface {
@@ -47,12 +42,12 @@ type IPrintList interface {
 
 var DebugLevel int = 4
 
-var userBeego = true
+var useBeego = true
 
 // var useColor = false
 
 var G_printLog = true
-var G_DebugLine = "-------------------------------------------------------------------------------------------------"
+var G_DebugLine = "-------------------------------------------------------------------------"
 
 func DebugPrintList_Info(list IPrintList) {
 	PrintList(list, DebugInfo)
@@ -114,7 +109,7 @@ func DebugOutput(log string, level int) {
 		return
 	}
 	if level <= DebugLevel {
-		if userBeego == true {
+		if useBeego == true {
 			DebugOutputBeego(log, level)
 		} else {
 			prefix := ""
@@ -134,18 +129,6 @@ func DebugOutput(log string, level int) {
 	}
 }
 
-// func DebugOutputColor(log string, level int) {
-// 	switch level {
-// 	case 1:
-// 		color.Red(log)
-// 	case 2:
-// 		color.Yellow(log)
-// 	case 3:
-// 		color.Green(log)
-// 	case 4:
-// 		color.Blue(log)
-// 	}
-// }
 func DebugOutputBeego(log string, level int) {
 	switch level {
 	case 1:

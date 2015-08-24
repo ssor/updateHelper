@@ -1,0 +1,9 @@
+
+UpdatedAppPort = "8080"
+#UpdatedAppName = "main.exe"# windows
+UpdatedAppName = "main"# linux or macos
+UpdateServerBaseURL = "https://raw.githubusercontent.com/ssor/binpickuplinux/master/"
+#UpdateServerBaseURL = "https://raw.githubusercontent.com/ssor/binpickupwin386/master/"
+# UpdateServerBaseURL = "https://raw.githubusercontent.com/ssor/binpickup/master/"
+UpdateCheckInterval = 30 #second
+AppID = "pickupTek"

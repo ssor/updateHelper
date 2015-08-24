@@ -29,7 +29,7 @@ func EmailErrorLog(appID, body string, receiver []string) {
 	// Connect to the server, authenticate, set the sender and recipient,
 	// and send the email all in one step.
 	// to := []string{"recipient@example.net"}
-	msg := []byte(fmt.Sprintf("subject: 系统异常信息\r\n\r\n 来自[%s] \r\n %s", appID, body))
+	msg := []byte(fmt.Sprintf("subject: 系统异常信息[%s]\r\n\r\n 来自[%s] \r\n %s", appID, appID, body))
 	go func() {
 		err := smtp.SendMail(DEFAULT_LOG_SENDER_SMTP_HOST+":25", auth, DEFAULT_LOG_SENDER, receiver, msg)
 		if err != nil {

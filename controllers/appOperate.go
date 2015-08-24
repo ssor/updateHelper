@@ -58,7 +58,7 @@ func tryToStartApp() {
 			}
 		}
 		file.Close()
-		// DebugMust("暂时屏蔽启动应用环节" + GetFileLocation())
+		// DebugMustF("暂时屏蔽启动应用环节")
 		// return
 		go TickForStartApp(3)
 		go StartAppMonitoring(15)
@@ -104,7 +104,10 @@ func TickForStartApp(second int) {
 
 func KillApp() error {
 	if G_UpdatedAppProc != nil {
-		return G_UpdatedAppProc.Kill()
+		DebugInfoF("提示App推出")
+		http.Get("http://localhost:" + G_conf.UpdatedAppPort + "/exit")
+		time.Sleep(1 * time.Second)
+		return nil
 	}
 	return nil
 }
@@ -141,12 +144,13 @@ func StartApp(monitor chan bool) {
 		G_UpdatedAppProc = cmd.Process
 		monitor <- true
 		if err := cmd.Wait(); err != nil {
-			if err.Error() == "signal: killed" {
+			DebugTraceF("cmd信息：%s", err.Error())
+			if err.Error() == "signal: killed" || err.Error() == "exit status 1" {
 				DebugInfoF("应用正常退出")
 			} else {
 				DebugSysF("监控程序不正常退出：%s", err)
 				// DebugSysF(output.String())
-				// EmailErrorLog("111", output.String(), nil)
+				EmailErrorLog(G_conf.AppID+G_currentUpdateInfo.Version, output.String(), nil)
 				monitor <- false
 			}
 		}
